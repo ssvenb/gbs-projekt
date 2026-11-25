@@ -4,11 +4,8 @@ Unser Bestand: **RI XIII H. 4** (Frankfurt am Main), 1.054 Regesten, Filter
 `r.identifier STARTS WITH '[RI XIII] H. 4 '`.
 Stand der Messung: 25.11.2026, lokale Neo4j-Datenbank aus `docker-compose.yml`.
 
-> **Einschränkung:** Der Import lief während der Messung noch (Textbereinigung; Datumskorrektur,
-> Ortsknoten und Register fehlten noch). Teil 1 und die mit „DB“ markierten Punkte in Teil 2 sind in
-> der Datenbank gemessen. Die mit „Importquelle“ markierten Punkte sind aus dem Importskript und
-> dessen Quelldateien (`RI-Places.csv`, `RI_013.xml`) abgeleitet und müssen nach Abschluss des
-> Imports in der Datenbank nachgeprüft werden.
+> **Stand:** Der Import ist abgeschlossen. Alle Zahlen sind in der fertigen Datenbank gemessen
+> bzw. nachgeprüft. Wo die fertige Datenbank von der ersten Einschätzung abwich, steht das dabei.
 
 ---
 
@@ -21,16 +18,22 @@ eingetragen sind.
 
 **Befund**
 - 100 unserer Regesten nennen im `Reg.:`-Teil von `archivalHistory` ein Chmel-Regest als Link
-  (`riregesten:<exchangeIdentifier>`). Alle 101 Links lassen sich auflösen und führen auf
-  95 verschiedene Chmel-Regesten.
+  (`riregesten:<exchangeIdentifier>`). Alle 100 Links lassen sich auflösen und führen auf
+  94 verschiedene Chmel-Regesten.
 - „Gleiches Datum + gleicher Ort“ taugt nicht als Erkennung: 136 unserer Regesten haben ein
   Chmel-Regest vom selben Tag und Ort, 122 davon ohne Verweis. In der Stichprobe waren das
   durchweg andere Urkunden.
-- Umgekehrt weicht bei 19 der 101 Links das Datum ab (H. 4 n. 22 „Mai 31“, Chmel n. 558 „Mai 30“),
-  und der Ort heißt bei Chmel teils anders („Neustadt“ statt „Wiener Neustadt“).
+- Umgekehrt weicht bei 18 der 100 Links das Datum ab (H. 4 n. 22 „Mai 31“, Chmel n. 558 „Mai 30“),
+  und auch der normalisierte Ort stimmt nur bei 71 der 100 überein (Chmel: „Neustadt“,
+  Heft: „Wiener Neustadt“).
 - 25 weitere Regesten erwähnen Chmel nur außerhalb des `Reg.:`-Teils. Das ist ein Querverweis,
   keine Dublette.
 - Im `Reg.:`-Teil verweisen außerdem 27 Regesten auf H. 3, vier auf H. 1 und zwei auf H. 2.
+- Im Graphen sind die Links als Annotation abfragbar:
+  `(:ArchivalHistory)-[:HAS_ANNOTATION]->(a {type:'a'})-[:REFERS_TO]->(:Regesta)`.
+  Darüber hängen 124 unserer Regesten an Chmel, also auch die bloßen Querverweise. Die Kante
+  allein unterscheidet Dublette und Querverweis nicht; dafür braucht man die Position im Text
+  (hinter `Reg.:`). 407 unserer Regesten verweisen so auf andere Regesten in Heft 4.
 
 **Betroffene Fragen:** alle Zählfragen („wie viele …“) und Ranglisten, sobald die Abfrage über
 Heft 4 hinaus auch Chmel oder andere Hefte einbezieht.
@@ -44,7 +47,7 @@ Heft 4 hinaus auch Chmel oder andere Hefte einbezieht.
   (n. 22–25 → Chmel n. 558).
 
 **Offen:** Bei Verweisen wie „Chmel n. 2, 9“ ist nur die erste Nummer verlinkt, und die passt nicht
-immer (H. 4 n. 1 → Chmel n. 2 hat anderes Datum und anderen Ort). Die 19 Links mit abweichendem
+immer (H. 4 n. 1 → Chmel n. 2 hat anderes Datum und anderen Ort). Die 18 Links mit abweichendem
 Datum sind nicht einzeln durchgesehen.
 
 ### 2. Datumsangaben als Spanne
@@ -91,60 +94,83 @@ Datum sind nicht einzeln durchgesehen.
 
 ## Teil 2: Weitere Probleme aus der Datenbank (unabhängig von unseren Fragen)
 
-### A. Ortlose Regesten landen an einem Schein-Ort „-“ (Importquelle)
+### A. Ortlose Regesten hängen an einem Schein-Ort „-“
 
-Das Importskript verknüpft `origPlaceOfIssue` per exaktem Textvergleich mit `RI-Places.csv`.
-Dort sind „[-]“, „o. O.“ und ihre Varianten auf den normalisierten Namen „-“ abgebildet, und das
-Skript legt dafür einen echten `Place`-Knoten an. Folge: 441 unserer 442 ortlosen Regesten fallen bei
-Ortsfragen nicht heraus, sondern hängen über `ri:placeOfIssue` alle an einem Ort namens „-“ und
-bekommen `r.placeOfIssue = '-'`. In einer Rangliste wäre „-“ der häufigste Ausstellungsort, weit
-vor Wiener Neustadt (125).
+Der Import verknüpft `origPlaceOfIssue` mit einem Ortsverzeichnis. Dort sind „[-]“, „o. O.“ und
+ihre Varianten auf den Namen „-“ abgebildet, und dafür gibt es einen echten `Place`-Knoten.
+441 unserer 442 ortlosen Regesten fallen bei Ortsfragen also nicht heraus, sondern hängen über
+`ri:placeOfIssue` an einem Ort mit `label = '-'` und haben `r.placeOfIssue = '-'`. In einer
+Rangliste ist „-“ der häufigste Ausstellungsort, weit vor Wiener Neustadt (132). Nur ein Regest
+hat wirklich keinen Ort (NULL).
 
-**Regel:** Bei jeder Ortsabfrage `p.normalizedGerman <> '-'` ausschließen und die Zahl getrennt
-als Lücke ausweisen.
+Zwei weitere Folgen:
+- **Doppelte Ortsannotationen:** 44 Regesten haben zwei `ri:placeOfIssue`-Annotationen auf
+  denselben Ort (alle „Linz“ → „Linz an der Donau“). Wer Annotationen statt Regesten zählt,
+  bekommt für Linz 89 statt 46.
+- **„Erschlossen“ geht verloren:** „[Frankfurt]“ und „Frankfurt“ landen beide bei „Frankfurt am
+  Main“. Dass ein Ort erschlossen ist, steht nur noch in `origPlaceOfIssue` bzw. `a.original`.
 
-Positiv: Die übrigen 612 Regesten werden vollständig zugeordnet, auch die Schreibweisen mit
-Klammern und `<sup>`. Die Normalisierung („[Frankfurt]“ → „Frankfurt am Main“,
-„[Linz]<sup>1</sup>“ → „Linz an der Donau“) verschluckt dabei aber die Information
-„erschlossen“. Sie bleibt nur in `origPlaceOfIssue` bzw. `a.original` erhalten.
+**Regel:** Bei jeder Ortsabfrage `p.label <> '-'` ausschließen und die Zahl getrennt als Lücke
+ausweisen. Immer `count(DISTINCT r)` zählen.
 
-### B. „Frankfurt“ hat vier verschiedene Bedeutungen und Zahlen (DB + Importquelle)
+### B. „Frankfurt“ hat vier verschiedene Bedeutungen und Zahlen
 
 | Lesart | Regesten in Heft 4 |
-|---|---|
+|---|---:|
 | Aus dem Frankfurter Bestand (ganzes Heft) | 1.054 |
 | „Frankfurt“ kommt im Regestentext vor | 638 |
 | Registerlemma „Frankfurt (Hessen), Stadt“ samt Unterlemmata | 460 |
 | Nur das Hauptlemma | 389 |
 | Ausstellungsort Frankfurt (genannt oder erschlossen) | 41 |
 
-Dazu kommen zwei getrennte Ortssysteme: der Ausstellungsort aus `RI-Places.csv`
-(„Frankfurt am Main“) und das Registerlemma („Frankfurt (Hessen), Stadt“). Beide werden
-voraussichtlich eigene Knoten für dieselbe Stadt. Im Register gibt es außerdem
-„Frankfurt a. d. Oder“ und Personen „von Frankfurt“.
+Bestätigt: Für dieselbe Stadt gibt es getrennte `Place`-Knoten. Der Ausstellungsort hängt an
+„Frankfurt am Main“ (41 Regesten), die Registernennungen hängen an „Frankfurt (Hessen), Stadt“
+(389). Zwischen beiden gibt es keine Verbindung. Zusätzlich existiert ein zweiter Knoten
+„Frankfurt am Main“ ohne Bezug zu unserem Heft, außerdem „Frankfurt an der Oder“ und
+„Frankfurt auf der Oder“. Das Register führt den Ausstellungsort noch einmal als Unterlemma
+„Frankfurt (Hessen), Stadt // AO“ (41 Regesten).
 
 **Regel:** Der Chatbot muss bei „Frankfurt“ klären oder ansagen, welche Lesart er zählt.
 
-### C. Registerhierarchie: Zählen am Hauptlemma unterschlägt Treffer (Importquelle)
+### C. Registerhierarchie: Zählen am Hauptlemma unterschlägt Treffer
 
-Von 1.562 Registerlemmata mit Bezug auf Heft 4 sind 845 Unterlemmata. Wer nur das Hauptlemma
-zählt, verliert Treffer (Frankfurt: 389 statt 460). Unterlemmata haben außerdem Namen ohne
-Kontext („AO“, „Juden“, „Gericht“, „Tag (1454)“), die nur zusammen mit dem Oberlemma verständlich
-sind.
+Das Register ist hierarchisch. Die Hierarchie ist keine Kante, sondern eine Annotation:
+`(kind)-[:HAS_ANNOTATION]->({type:'ri:isSubOf'})-[:REFERS_TO]->(eltern)`. Am Knoten
+„Frankfurt (Hessen), Stadt“ hängen 79 direkte Unterlemmata (laut `numberOfChilds` 1.289 im ganzen
+Teilbaum). Wer nur das Hauptlemma zählt, findet 389 unserer Regesten, mit Unterlemmata bis zur
+zweiten Ebene sind es 460.
 
-**Regel:** Entitätsfragen immer über den Teilbaum (`IS_SUB_OF`) auswerten und Unterlemmata mit
-dem Namen des Oberlemmas ausgeben.
+Anders als zuerst vermutet tragen die Unterlemmata in der Datenbank den vollen Pfad im Namen
+(„Frankfurt (Hessen), Stadt // Juden // Synagoge, jüdische Schule“). Sie sind also verständlich,
+aber eine Suche nach exakt „Frankfurt (Hessen), Stadt“ trifft sie nicht. Unterlemmata können
+außerdem einen anderen Typ haben als das Oberlemma (unter dem Ort Frankfurt hängen Personen wie
+„// Schultheiß“ und Sachen wie „// Messe“).
 
-### D. Rollen: „kommt vor“ ist nicht „Empfänger“ (Importquelle)
+**Regel:** Entitätsfragen über den Teilbaum auswerten (`ri:isSubOf` folgen oder
+`label STARTS WITH`), nicht nur über das Hauptlemma.
 
-Die Registerverweise auf Heft 4 tragen eine Rolle: 3.361 × `nennung`, 1.606 × `empfaenger`,
-490 × `austOrt`, 11 × `p_tot`. Ein eigenes Empfänger-Textfeld (`Recipient`) gibt es in Heft 4
-nicht.
+### D. Rollen: „kommt vor“ ist nicht „Empfänger“
 
-**Regel:** Fragen nach Empfängern filtern auf `a.role = 'empfaenger'`; Fragen nach „erwähnt“
-nehmen alle Rollen. Ohne Rollenfilter werden Empfänger und bloße Erwähnungen vermischt.
+Entitäten hängen über `(e)-[:HAS_ANNOTATION]->(a {type:'ri:appearsIn'})-[:REFERS_TO]->(r)` am
+Regest, die Rolle steht in `a.role`. Für Heft 4:
 
-### E. Der Aussteller steht nicht im Text (DB)
+| Rolle | Verweise | davon Personen | davon Orte |
+|---|---:|---:|---:|
+| `nennung` | 3.359 | 2.274 | 881 |
+| `empfaenger` | 1.606 | 789 | 798 |
+| `austOrt` | 490 | 0 | 490 |
+| `p_tot`, `p_komment` | 12 | 12 | 0 |
+
+- Empfänger sind zur Hälfte Orte (Städte als Empfänger), nicht nur Personen.
+- Ein eigenes Empfänger-Textfeld (`Recipient`) gibt es in Heft 4 nicht.
+- Der Ausstellungsort ist doppelt modelliert: als `ri:placeOfIssue` (612 Regesten mit echtem Ort)
+  und als Registerrolle `austOrt` (486 Regesten). Die beiden Wege liefern verschiedene Zahlen und
+  führen auf verschiedene Ortsknoten.
+
+**Regel:** Fragen nach Empfängern filtern auf `a.role = 'empfaenger'` und schließen Orte ein;
+Fragen nach „erwähnt“ nehmen alle Rollen. Für den Ausstellungsort gilt nur `ri:placeOfIssue`.
+
+### E. Der Aussteller steht nicht im Text
 
 840 Regestentexte beginnen mit „K. F.“, 212 mit „Kg. F.“. Das Wort „Friedrich“ kommt nur in
 42 Texten vor. Eine Volltextsuche nach „Friedrich III.“ findet also fast nichts. Der Aussteller
@@ -154,16 +180,16 @@ und nach der Kaiserkrönung 1452.
 **Regel:** Aussteller über `Title` bzw. den Heftfilter bestimmen, nie über Textsuche. Dem LLM die
 Abkürzungen „K. F.“ und „Kg. F.“ im Prompt erklären.
 
-### F. Markup in den Texten (DB)
+### F. Markup und Fußnotenziffern in den Texten
 
-570 der 1.054 Regestentexte enthalten Markup, meist Fußnotenzeichen wie `<sup>[1]</sup>` mitten im
-Satz. Während des Imports enthielten zudem 1.137 Textknoten unseres Hefts fehlerhaftes HTML
-(`<a href=…>…</link>`). Ob das nach der Bereinigung verschwindet, ist nachzuprüfen.
+Nach dem Import ist `text` bereinigt: Nur noch einer von 7.806 Textknoten unseres Hefts enthält
+ein Tag. `origText` enthält weiter das rohe Markup (2.954 Knoten). Übrig bleiben in `text` aber
+die Fußnotenziffern: 329 Regestentexte enthalten ein „[1]“ mitten im Satz.
 
-**Regel:** Für Suche und LLM das bereinigte `text` verwenden, nicht `origText`, und Reste von
-Markup vor der Ausgabe entfernen.
+**Regel:** Für Suche und LLM `text` verwenden, nicht `origText`. Fußnotenziffern vor der Ausgabe
+entfernen oder als Verweis auf den `Footnotes`-Knoten erklären.
 
-### G. Die Hälfte der Regesten sind verlorene Stücke (DB)
+### G. Die Hälfte der Regesten sind verlorene Stücke
 
 Bei 517 von 1.054 Regesten (49 %) steht in `archivalHistory` „noch nicht aufgetaucht“. Diese
 Stücke sind aus anderen Quellen erschlossen. Sie haben meist kein exaktes Datum und keinen Ort
@@ -173,18 +199,20 @@ Stücke sind aus anderen Quellen erschlossen. Sie haben meist kein exaktes Datum
 **Regel:** Bei „wie viele Urkunden“ sagen, ob erschlossene Stücke mitgezählt sind. Fragen nach
 Überlieferung, Siegel oder Archivsignatur gelten nur für die erhaltenen Stücke.
 
-### H. Chmel ist anders erschlossen als die Hefte (DB)
+### H. Chmel ist anders erschlossen als die Hefte
 
-- Ortsnamen: Chmel schreibt 2.177 × „Neustadt“ und nie „Wiener Neustadt“.
+- Ortsnamen: Chmel schreibt 2.177 × „Neustadt“ und nie „Wiener Neustadt“. Auch der normalisierte
+  Ort bleibt „Neustadt“. Chmel und Hefte hängen für dieselbe Stadt an zwei verschiedenen Knoten.
 - Text: Chmel-Regesten beginnen ohne Subjekt und klein („erklärt, dass …“), mit anderer
   Rechtschreibung.
 - 577 der 8.972 Chmel-Regesten haben eine Datumsspanne. Die 133 Regesten im Chmel-Anhang haben
   gar keinen Ort.
 
-**Regel:** Vergleiche über Hefte und Chmel hinweg nur über normalisierte Orte, nicht über
-`origPlaceOfIssue`. Stilunterschiede bei Textsuche und Zusammenfassungen einkalkulieren.
+**Regel:** Bei Vergleichen über Hefte und Chmel hinweg reicht auch der normalisierte Ort nicht;
+„Neustadt“ und „Wiener Neustadt“ müssen von Hand gleichgesetzt werden. Stilunterschiede bei
+Textsuche und Zusammenfassungen einkalkulieren.
 
-### I. Die Datenbank enthält alle Regesta Imperii, nicht nur Friedrich III. (DB)
+### I. Die Datenbank enthält alle Regesta Imperii, nicht nur Friedrich III.
 
 Von 212.176 Regesten gehören nur 26.067 zu Friedrich III. (RI XIII und Chmel). Eine Abfrage ohne
 Filter zählt alle Herrscher mit. „Frankfurt“ als Ausstellungsort gibt es datenbankweit in
@@ -193,17 +221,18 @@ mindestens acht Schreibweisen („Frankfurt“ 2.541, „Frankfurt [a. Main]“ 
 
 **Regel:** Jede Abfrage beginnt mit dem Heft- oder Herrscherfilter.
 
-### J. Regestennummern (DB + Importquelle)
+### J. Regestennummern
 
 - Sieben Nummern haben einen Buchstabenzusatz (391a, 399a, 811a, 816a, 816b, 817a, 932a). Die
   höchste Nummer ist 1047, es sind aber 1.054 Regesten.
 - `regestennummernorm` ist ein Text. Sortieren danach ergibt „10“ vor „2“.
 - Im Register stehen zwei Nummern, die auf kein Regest passen („#4-1241“, „#4-907 (?)“). Diese
-  Verweise gehen beim Import verloren. Ein Regest hat gar keinen Registereintrag.
+  Verweise sind beim Import verloren gegangen. Jedes unserer Regesten hat aber mindestens eine
+  Entität.
 
 **Regel:** Nach `sorting` sortieren, nie die Anzahl aus der höchsten Nummer ableiten.
 
-### K. Viele Regesten am selben Tag, darunter Serienschreiben (DB)
+### K. Viele Regesten am selben Tag, darunter Serienschreiben
 
 An 208 Tagen gibt es mehr als ein Regest (zusammen 653 Regesten, bis zu 19 an einem Tag). Darunter
 sind gleichlautende Schreiben an verschiedene Empfänger als eigene Regesten (n. 1000 an Nürnberg,
@@ -212,24 +241,25 @@ n. 1001 an Speyer, beide 10. Dezember 1489 zum Feldzug).
 **Regel:** „Das Regest vom …“ ist oft mehrdeutig; dann alle Treffer des Tages nennen. Bei
 Zählfragen zu einem Thema sagen, dass Serienschreiben einzeln zählen.
 
-### L. Datumsfelder sind Text, Fehlwerte werden zu 2021 (Importquelle)
+### L. Datumsfelder: Text und echtes Datum nebeneinander, Fehlwerte werden zu 2021
 
-`startDate` und `endDate` sind Zeichenketten. Der Vergleich funktioniert nur, weil sie im
-ISO-Format stehen; echte Datumswerte (`isoStartDate`, `isoEndDate`) ergänzt der Import später.
-Ungültige Daten setzt das Skript auf `2021-01-01` und merkt das Original in `startDateWrong` vor.
-In Heft 4 liegen alle Daten zwischen 1440-02-22 und 1493-06-03, bei uns ist also bisher nichts
-betroffen. Bei Abfragen über Heft 4 hinaus können solche Regesten als „jüngste“ auftauchen.
+`startDate` und `endDate` sind Zeichenketten im ISO-Format. Daneben gibt es jetzt echte
+Datumswerte in `isoStartDate` und `isoEndDate` (bei allen 1.054 Regesten vorhanden). Ungültige
+Daten hat der Import auf `2021-01-01` gesetzt und das Original in `startDateWrong` bzw.
+`endDateWrong` abgelegt. Das betrifft datenbankweit 10 Regesten, davon 2 bei Friedrich III. und
+keines in Heft 4.
 
-**Regel:** Zeitabfragen über Heft 4 hinaus schließen `startDateWrong IS NOT NULL` aus.
+**Regel:** Für Datumsrechnung `isoStartDate`/`isoEndDate` nehmen. Zeitabfragen über Heft 4 hinaus
+schließen Regesten mit `startDateWrong` oder `endDateWrong` aus.
 
-### M. Sehr unterschiedlich lange Texte (DB)
+### M. Sehr unterschiedlich lange Texte
 
 Die Regestentexte sind zwischen 32 und 11.562 Zeichen lang (Mittel 511). Lange Regesten sprengen
 ein knappes Kontextfenster und dominieren eine Ähnlichkeitssuche anders als kurze.
 
 **Regel:** Für das LLM eine Längenobergrenze oder Abschnitte vorsehen und Kürzungen ansagen.
 
-### N. Felder, die nur bei einem Teil vorhanden sind (DB)
+### N. Felder, die nur bei einem Teil vorhanden sind
 
 | Feld | Regesten mit Feld |
 |---|---|
@@ -245,10 +275,32 @@ beantworten. Der Regestentext steht nur im `Summary`-Knoten, nicht als Eigenscha
 
 ---
 
-## Nachprüfen, sobald der Import fertig ist
+### O. Eigenschaften der Entitäten sind Annotationen, keine Properties
 
-1. Punkt A: Gibt es den `Place`-Knoten „-“, und hängen 441 unserer Regesten daran?
-2. Punkt B: Sind Ausstellungsort und Registerlemma für Frankfurt zwei getrennte Knoten?
-3. Punkte C und D: Kommen `IS_SUB_OF` und `a.role` so in der Datenbank an wie in der Quelle?
-4. Punkt F: Ist das fehlerhafte HTML aus `text` verschwunden?
-5. Alle Zahlen aus Teil 1 einmal neu ausführen (der Import korrigiert noch Datumswerte).
+Ein `Entity`-Knoten hat nur `label`, `uuid`, `pathLength` und `numberOfChilds`. Alles andere
+hängt als eigene Annotation mit `a.type` und `a.value` daran: `xmlId`, `wikidataId`, `latitude`,
+`longitude`, `latLong`, `type`, `normalizedGerman`. Eine Abfrage wie `p.latitude` oder
+`p.normalizedGerman` liefert deshalb immer NULL, ohne Fehlermeldung.
+
+Koordinaten gibt es an zwei Stellen:
+- am Regest (`r.nLatLong`, `r.latitude`, `r.longitude`) für den Ausstellungsort: bei 612 von
+  1.054 Regesten vorhanden;
+- als Annotation an Registerorten: nur 172 der 412 in Heft 4 vorkommenden Orte haben welche.
+
+**Regel:** Entitätseigenschaften immer über die Annotation lesen. Kartenantworten nennen, wie
+viele Treffer keine Koordinaten haben.
+
+---
+
+## Ergebnis der Nachprüfung nach Abschluss des Imports
+
+| Punkt | Ergebnis |
+|---|---|
+| A Schein-Ort „-“ | Bestätigt: 441 Regesten hängen daran. Neu: 44 Regesten mit doppelter Ortsannotation. |
+| B Frankfurt-Knoten | Bestätigt: getrennte Knoten für Ausstellungsort und Registerlemma, dazu ein zweiter „Frankfurt am Main“. |
+| C Hierarchie | Bestätigt (389 gegenüber 460). Korrigiert: Unterlemmata tragen den vollen Pfad im Namen; die Hierarchie ist eine Annotation. |
+| D Rollen | Bestätigt, Zahlen aus der Datenbank eingesetzt. |
+| F Markup | Entschärft: `text` ist sauber, es bleiben Fußnotenziffern in 329 Texten. |
+| J Register | Korrigiert: Jedes Regest hat mindestens eine Entität. |
+| L Datum | Bestätigt: 10 Fehlwerte datenbankweit, keiner in Heft 4. |
+| Teil 1 | Datums- und Ortszahlen unverändert. Chmel-Links korrigiert auf 100 Links zu 94 Chmel-Regesten, 18 mit abweichendem Datum. |
