@@ -1,0 +1,98 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="KOrs0gqfCE9fMjhmZSRo">
+    <mxGraphModel dx="719" dy="707" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="M0VmMN47sEogzdjBedZ1-15" parent="1" style="whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="710" width="1340" x="60" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-18" parent="1" style="whiteSpace=wrap;html=1;fontSize=14;" value="Data &amp;amp; Tools&amp;nbsp;&lt;div&gt;(MCP Server)&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="590" width="300" x="1050" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-6" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-1" style="edgeStyle=none;curved=1;rounded=0;curveGeometry=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;startArrow=classic;startFill=1;" target="2J1APqFICwu1rdVZpltN-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-7" connectable="0" parent="2J1APqFICwu1rdVZpltN-6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];inheritText=1;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;" value="REST API (JSON)" vertex="1">
+          <mxGeometry relative="1" x="-0.2234" y="1" as="geometry">
+            <mxPoint x="16" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-1" parent="1" style="whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="590" width="300" x="90" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=16;" value="Frontend - Browseroberfläche (React)&amp;nbsp;&amp;nbsp;" vertex="1">
+          <mxGeometry height="30" width="220" x="140" y="109" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontSize=16;" value="Features: LLM-Dialog mit&lt;br&gt;- Karte (Aktivitätsorte)&lt;div&gt;- Zeitleiste (Ereignisse &amp;amp; Kontakte&lt;/div&gt;&lt;div&gt;- Personen-netzwerk&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(#000000, var(--ge-light-color, #ffffff));&quot;&gt;(Akteure &amp;amp; Beziehungen)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;- Steckbrief (Persones &amp;amp; Orte, mit externer Quelle)&lt;/div&gt;&lt;div&gt;- Quellen (Regesten-Links)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="240" width="270" x="110" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-4" parent="1" style="whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="590" width="300" x="530" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-8" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=16;" value="Backend - Python / FastAPI" vertex="1">
+          <mxGeometry height="30" width="220" x="570" y="109" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-16" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-9" style="edgeStyle=none;curved=1;rounded=0;curveGeometry=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;startArrow=classic;startFill=1;" target="2J1APqFICwu1rdVZpltN-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-9" parent="1" style="whiteSpace=wrap;html=1;fontSize=14;" value="LLM Client&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="220" x="570" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-17" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-10" style="edgeStyle=none;curved=1;rounded=0;curveGeometry=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;startArrow=classic;startFill=1;" target="2J1APqFICwu1rdVZpltN-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-10" parent="1" style="whiteSpace=wrap;html=1;fontSize=14;" value="&lt;div&gt;Agentic Harness (Orchestrierung)&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="160" width="220" x="570" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-11" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontSize=16;" value="&lt;div style=&quot;font-size: 12px;&quot;&gt;- Anfrage interpretieren&lt;/div&gt;&lt;div style=&quot;font-size: 12px;&quot;&gt;-&amp;nbsp;LLM- und MCP-Tool-Aufrufe steuern&lt;/div&gt;&lt;div style=&quot;font-size: 12px;&quot;&gt;- Ergebnisse validieren und aufbereiten&amp;nbsp;&lt;/div&gt;&lt;div style=&quot;font-size: 12px;&quot;&gt;- Antworten mit Quellen bereitstellen&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="140" width="180" x="590" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontSize=16;" value="&lt;div style=&quot;font-size: 12px;&quot;&gt;&lt;span style=&quot;text-align: center;&quot;&gt;LLM Provider (Konfigurierbar)&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="180" x="600" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-40" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;" target="2J1APqFICwu1rdVZpltN-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-41" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;startArrow=classic;startFill=1;" target="2J1APqFICwu1rdVZpltN-29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-42" connectable="0" parent="2J1APqFICwu1rdVZpltN-41" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];inheritText=1;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;" value="MCP&lt;div&gt;(Tool-Zugrif, read-only)&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.5169" y="-2" as="geometry">
+            <mxPoint x="37" y="23" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-14" parent="1" style="whiteSpace=wrap;html=1;fontSize=14;" value="&lt;div&gt;MCP Client&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="220" x="570" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-15" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontSize=16;" value="&lt;div style=&quot;font-size: 12px;&quot;&gt;&lt;span style=&quot;text-align: center;&quot;&gt;- Tool-Discovery&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 12px;&quot;&gt;&lt;span style=&quot;text-align: center;&quot;&gt;Tool-Aufrufe (Neo4j, Wikidata)&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="180" x="600" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-19" parent="1" style="whiteSpace=wrap;html=1;fontSize=14;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="210" width="220" x="1100" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-26" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=16;" value="Neo4j MCP Server" vertex="1">
+          <mxGeometry height="45" width="110" x="1155" y="175" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-28" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-27" style="edgeStyle=none;curved=1;rounded=0;curveGeometry=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;startArrow=classic;startFill=1;" target="2J1APqFICwu1rdVZpltN-26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-27" parent="1" style="whiteSpace=wrap;html=1;" value="RI-alles" vertex="1">
+          <mxGeometry height="60" width="120" x="1150" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-29" parent="1" style="whiteSpace=wrap;html=1;fontSize=14;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="210" width="220" x="1100" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-30" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=16;" value="Wikidata MCP Server" vertex="1">
+          <mxGeometry height="45" width="110" x="1155" y="425" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-31" edge="1" parent="1" source="2J1APqFICwu1rdVZpltN-32" style="edgeStyle=none;curved=1;rounded=0;curveGeometry=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;fontSize=12;defaultLabelBackgroundColor=page;labelPadding=0 4;startSize=8;endSize=8;startArrow=classic;startFill=1;" target="2J1APqFICwu1rdVZpltN-30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2J1APqFICwu1rdVZpltN-32" parent="1" style="whiteSpace=wrap;html=1;" value="Wikidata" vertex="1">
+          <mxGeometry height="60" width="120" x="1150" y="520" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
