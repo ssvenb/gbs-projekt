@@ -1,0 +1,50 @@
+services:
+  # Downloads the neo4j-atag plugin and the setup script into shared volumes.
+  fetch:
+    image: curlimages/curl:8.11.1
+    user: root
+    command:
+      - sh
+      - -ec
+      - |
+        curl -fsSL -o /plugins/neo4j-atag.jar https://github.com/THM-Graphs/neo4j-atag/releases/download/v0.5.5/neo4j-atag-v0.5.5.jar
+        # cypher-shell does not know the Browser-only ':auto' command; statements auto-commit there anyway
+        curl -fsSL https://raw.githubusercontent.com/RAMEN-Suite/ramen-projects/dev/imports/ri/99_combined-script.cyp | sed '/^[[:space:]]*:auto[[:space:]]*$/d' > /scripts/setup.cyp
+    volumes:
+      - plugins:/plugins
+      - scripts:/scripts
+
+  neo4j:
+    image: neo4j:5.26
+    depends_on:
+      fetch:
+        condition: service_completed_successfully
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*,atag.*
+    volumes:
+      - plugins:/plugins
+      - data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      interval: 10s
+      retries: 30
+
+  # Runs the import once neo4j is up. Re-run with: docker compose run --rm setup
+  setup:
+    image: neo4j:5.26
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - scripts:/scripts
+    command: cypher-shell -a neo4j://neo4j:7687 -u neo4j -p password -f /scripts/setup.cyp
+
+volumes:
+  plugins:
+  data:
+  scripts:
