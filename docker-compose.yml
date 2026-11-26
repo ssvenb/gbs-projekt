@@ -1,5 +1,6 @@
 services:
-  # Downloads the neo4j-atag plugin and the setup script into shared volumes.
+  # Downloads the neo4j-atag plugin and the setup script into ./neo4j/ on the host.
+  # Files that already exist are kept, so they are only downloaded once.
   fetch:
     image: curlimages/curl:8.11.1
     user: root
@@ -7,12 +8,21 @@ services:
       - sh
       - -ec
       - |
-        curl -fsSL -o /plugins/neo4j-atag.jar https://github.com/THM-Graphs/neo4j-atag/releases/download/v0.5.5/neo4j-atag-v0.5.5.jar
-        # cypher-shell does not know the Browser-only ':auto' command; statements auto-commit there anyway
-        curl -fsSL https://raw.githubusercontent.com/RAMEN-Suite/ramen-projects/dev/imports/ri/99_combined-script.cyp | sed '/^[[:space:]]*:auto[[:space:]]*$/d' > /scripts/setup.cyp
+        if [ ! -s /plugins/neo4j-atag.jar ]; then
+          curl -fsSL -o /plugins/neo4j-atag.jar https://github.com/THM-Graphs/neo4j-atag/releases/download/v0.5.5/neo4j-atag-v0.5.5.jar
+        else
+          echo "neo4j-atag.jar already present, skipping download"
+        fi
+        if [ ! -s /scripts/setup.cyp ]; then
+          # cypher-shell does not know the Browser-only ':auto' command; statements auto-commit there anyway
+          curl -fsSL https://raw.githubusercontent.com/RAMEN-Suite/ramen-projects/dev/imports/ri/99_combined-script.cyp | sed '/^[[:space:]]*:auto[[:space:]]*$/d' > /scripts/setup.cyp.tmp
+          mv /scripts/setup.cyp.tmp /scripts/setup.cyp
+        else
+          echo "setup.cyp already present, skipping download"
+        fi
     volumes:
-      - plugins:/plugins
-      - scripts:/scripts
+      - ./neo4j/plugins:/plugins
+      - ./neo4j/scripts:/scripts
 
   neo4j:
     image: neo4j:5.26
@@ -27,24 +37,29 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*,atag.*
     volumes:
-      - plugins:/plugins
-      - data:/data
+      - ./neo4j/plugins:/plugins
+      - ./neo4j/data:/data
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
       interval: 10s
       retries: 30
 
   # Runs the import once neo4j is up. Re-run with: docker compose run --rm setup
+  # Skips the import if the database already contains regesta (delete ./neo4j/data to start over).
   setup:
     image: neo4j:5.26
     depends_on:
       neo4j:
         condition: service_healthy
     volumes:
-      - scripts:/scripts
-    command: cypher-shell -a neo4j://neo4j:7687 -u neo4j -p password -f /scripts/setup.cyp
-
-volumes:
-  plugins:
-  data:
-  scripts:
+      - ./neo4j/scripts:/scripts
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        n=$$(cypher-shell -a neo4j://neo4j:7687 -u neo4j -p password --format plain "MATCH (r:Regesta) RETURN count(r)" | tail -1)
+        if [ "$$n" != "0" ]; then
+          echo "Database already contains $$n regesta, skipping import"
+        else
+          cypher-shell -a neo4j://neo4j:7687 -u neo4j -p password -f /scripts/setup.cyp
+        fi

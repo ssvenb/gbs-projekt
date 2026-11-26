@@ -1,0 +1,96 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{booktabs,tabularx,array}
+\usepackage{csquotes}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc}
+
+\usetheme{default}
+\usecolortheme{beaver}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/3\hspace*{4mm}\vspace*{2mm}}
+\setbeamerfont{frametitle}{size=\large,series=\bfseries}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.1}
+
+\begin{document}
+
+%---------------------------------------------------------------------
+\begin{frame}{1 \,|\, Frankfurt im Graphen: 10 Fragen, 8 Tools}
+\vspace{-2mm}
+\small Gruppe 2 · RI XIII H.\,4 (Stadtarchiv Frankfurt) · \textbf{1.054 Regesten, 1440--1493} · gemeinsames Modell RI-alles
+\vspace{1mm}
+
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}rLp{5.3cm}p{3.1cm}@{}}
+\toprule
+\# & Frage der Lehrkraft & Modell (Knoten / Annotation / Rolle) & Tool\\\midrule
+1 & Welche Urkunden stellte F.\ 1442 in Frankfurt aus? & \code{ri:placeOfIssue}, Datum & \code{search\_regesta}\\
+2 & Von wo aus schrieb Friedrich an Frankfurt? & \code{ri:placeOfIssue} $\to$ Place & \code{itinerary}\\
+3 & Welche Privilegien erhielt die Stadt? & \textbf{\code{ri:legalAct}} \code{privilege\_*} & \code{legal\_acts}\\
+4 & Welche Steuern zahlte Frankfurt? & Summary + \textbf{\code{receipt}, \code{year\_ref}} & \code{legal\_acts}\\
+5 & Was regelte der Landfrieden 1442? & Regesta n.\,41, Summary & \code{get\_regest}\\
+6 & Welche Kanzleibeamten wirkten mit? & \code{nennung} + \textbf{\code{relator}/\code{chancery}} & \code{regesta\_by\_entity}\\
+7 & Welche Befehle an den Rat -- gegen wen? & \textbf{\code{mandate}} + \textbf{Rolle \code{affected}} & \code{legal\_acts}\\
+8 & Wie entwickelte sich der Kontakt? & \code{startDate}/\code{endDate} & \code{count\_regesta}\\
+9 & Wer wurde zusammen mit Frankfurt angeschrieben? & \code{ri:appearsIn \{role:'empfaenger'\}} & \code{co\_recipients}\\
+10 & Welche Personen begünstigte der König? & \textbf{Rolle \code{beneficiary}} & \code{regesta\_by\_entity}\\
+\bottomrule
+\end{tabularx}
+
+\vspace{2mm}
+\small
+\begin{columns}[T]
+\column{0.45\textwidth}
+\textbf{5} Basis · \textbf{2} genauer mit Ergänzung · \textbf{3} nur mit Ergänzung (\textbf{fett})
+\column{0.52\textwidth}
+\textbf{Grundsatz:} Kein freies Cypher -- das LLM ruft \textbf{feste, getestete MCP-Tools} auf. Jede Antwort nennt Regestennummer und Link.
+\end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{2 \,|\, Fallstricke und unsere Ergänzung}
+\begin{columns}[T]
+\column{0.47\textwidth}
+\textbf{Fallstricke -- fest in den Tools}\\[1mm]
+\footnotesize
+\textbf{Chmel-Dubletten:} 100 Regesten verlinken Chmel (z.\,T.\ mit anderem Datum).
+$\to$ Heft zählt, Chmel nur als Hinweis.\\[1.5mm]
+\textbf{Datum als Spanne:} 483 von 1.054 unsicher; \enquote{[Vor 1441 Mai 26]} steht als exakter Tag.
+$\to$ Überlappung \code{start <= Ende AND end >= Anfang}, Originaldatum + \enquote{erschlossen} ausgeben.\\[1.5mm]
+\textbf{Fehlende Orte:} 442 (42\,\%) ohne Ort -- hängen am \textbf{Schein-Ort \enquote{-}}, nicht NULL.
+$\to$ ausschließen, Lücke immer nennen, \emph{kein} Raten per LLM.\\[1.5mm]
+\textbf{Außerdem:} \code{count(DISTINCT r)} (doppelte Annotationen), \enquote{Frankfurt} hat 4 Lesarten.
+
+\column{0.5\textwidth}
+\textbf{Ergänzung per LLM: Rollen + Rechtsakte}\\[1mm]
+\footnotesize
+n.\,32: \emph{Befehl an Schultheiß Hermann von Hoch-Weisel, Katharina von Ingelheim zu schützen}\\[1mm]
+\begin{tabular}{@{}lll@{}}
+\toprule
+& Register & + LLM\\\midrule
+Hoch-Weisel & \code{empfaenger} & \code{commissioned}\\
+Katharina & \code{nennung} & \code{beneficiary}\\
+Regest & -- & \code{ri:legalAct mandate}\\
+\bottomrule
+\end{tabular}\\[1.5mm]
+Gleiches Muster wie RI-alles: \code{Annotation \{type, role|act,}\\\code{evidence, source, status\}}\\[1mm]
+\textbf{Herkunft:} \code{register} · \code{llm} (Modell, Prompt, Belegstelle, \code{unreviewed}/\code{verified}) · \code{manual}\\[1mm]
+\textbf{1.101 Rechtsakte, 1.456 Rollen}, 0 Fehler in der Autoprüfung; Goldstandard (50 Regesten) läuft.
+\end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{3 \,|\, Architektur}
+\begin{center}
+\resizebox{!}{0.72\textheight}{\input{common_arch.tex}}
+\end{center}
+\vspace{-1mm}
+\centering\large\textbf{Das LLM formuliert -- die Tools rechnen und belegen.}
+\end{frame}
+
+\end{document}

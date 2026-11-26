@@ -1,0 +1,43 @@
+% Architektur-Skizze (TikZ), wird von plan.tex und pitch.tex eingebunden
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, minimum height=9mm},
+  arr/.style={<->, >=stealth, thick},
+  lab/.style={font=\sffamily\scriptsize, fill=white, inner sep=1pt},
+  node distance=6mm
+]
+  % Frontend
+  \node[box, fill=blue!10, text width=30mm] (ui) {\textbf{Browseroberfläche}\\(React)\\[2pt]
+    \scriptsize Chat · Quellenbelege\\\scriptsize Karte · Zeitleiste\\\scriptsize Netzwerk · Steckbrief};
+
+  % Backend
+  \node[box, fill=orange!15, text width=40mm, right=17mm of ui] (bot) {\textbf{Chatbot}\\Python / FastAPI\\Agentic Harness\\[2pt]
+    \scriptsize Systemprompt · Tool-Aufrufe prüfen\\\scriptsize Belege + Visualisierungsdaten};
+  \node[box, fill=orange!30, text width=40mm, below=4mm of bot, minimum height=6mm] (mcpc) {\textbf{MCP-Client}};
+
+  % LLM
+  \node[box, fill=gray!20, text width=30mm, right=15mm of bot] (llm) {\textbf{LLM}\\(konfigurierbar)\\[2pt]
+    \scriptsize THM-KI-Dienst oder lokal\\\scriptsize (llama.cpp / vLLM)};
+
+  % MCP servers
+  \node[box, fill=violet!12, text width=44mm, below=11mm of mcpc, xshift=-12mm] (rimcp) {\textbf{RI-MCP-Server} (unser)\\[2pt]
+    \scriptsize\ttfamily search\_regesta · get\_regest\\\scriptsize\ttfamily find\_entity · itinerary\\
+    \scriptsize\ttfamily regesta\_by\_entity · count\_regesta\\\scriptsize\ttfamily co\_recipients · legal\_acts\\[1pt]
+    \scriptsize\sffamily feste, getestete Cypher-Abfragen};
+  \node[box, fill=green!12, text width=28mm, right=6mm of rimcp] (wd) {\textbf{Wikidata-}\\\textbf{MCP-Server}\\[2pt]\scriptsize Steckbriefe\\\scriptsize (externe Quelle)};
+
+  % DB
+  \node[box, fill=violet!25, text width=60mm, below=9mm of rimcp] (db) {\textbf{Neo4j: RI-alles} (\texttt{riallesatag})\\
+    \scriptsize + unsere Ergänzung: \texttt{ri:legalAct}, neue Rollen in \texttt{ri:appearsIn}};
+  \node[box, dashed, text width=30mm, left=8mm of db] (jlu) {\scriptsize RI-alles auf jlu-buster\\\scriptsize\texttt{:9011} (schreibgeschützt)};
+  \node[box, dashed, text width=34mm, right=8mm of db] (pipe) {\scriptsize LLM-Extraktion (offline)\\\scriptsize Rollen + Rechtsakte\\\scriptsize \texttt{source:'llm'}};
+
+  \draw[arr] (ui) -- node[lab, above=1pt] {REST/JSON} (bot);
+  \draw[arr] (bot) -- node[lab, above=1pt] {API} (llm);
+  \draw[arr] (bot) -- (mcpc);
+  \draw[arr] (mcpc.south) ++(-12mm,0) -- node[lab, right] {MCP} (rimcp.north);
+  \draw[arr] (mcpc.south) ++(14mm,0) |- ++(0,-4mm) -| node[lab, pos=0.75, right] {MCP} (wd.north);
+  \draw[->, >=stealth, thick] (rimcp) -- node[lab, right] {Bolt, nur lesend} (db);
+  \draw[->, >=stealth, dashed] (jlu) -- node[lab, above] {Kopie} (db);
+  \draw[->, >=stealth, dashed] (pipe) -- node[lab, above] {Import} (db);
+\end{tikzpicture}

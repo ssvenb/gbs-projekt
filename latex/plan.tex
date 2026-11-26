@@ -1,0 +1,362 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{tabularx,booktabs,array,longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc}
+\usepackage{enumitem}
+\usepackage{csquotes}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+\usepackage{titlesec}
+
+\setlist{nosep,leftmargin=*}
+\setlength{\parindent}{0pt}\setlength{\parskip}{3pt}
+\emergencystretch=2em
+\renewcommand{\arraystretch}{1.15}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\erg}{\textbf{Ergänzung}}
+
+\definecolor{codebg}{gray}{0.95}
+\lstdefinelanguage{cypher}{
+  morekeywords={MATCH,OPTIONAL,WHERE,RETURN,DISTINCT,AND,OR,NOT,IN,WITH,ORDER,BY,CREATE,AS,count,coalesce},
+  sensitive=true, morestring=[b]', morecomment=[l]{//}}
+\lstset{language=cypher, basicstyle=\ttfamily\scriptsize, backgroundcolor=\color{codebg},
+  keywordstyle=\bfseries\color{blue!60!black}, commentstyle=\itshape\color{gray},
+  stringstyle=\color{red!50!black}, columns=fullflexible, breaklines=true, frame=none,
+  xleftmargin=2pt, aboveskip=4pt, belowskip=4pt, upquote=true,
+  literate={ä}{{\"a}}1 {ö}{{\"o}}1 {ü}{{\"u}}1 {Ä}{{\"A}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1 {ß}{{\ss}}1
+           {–}{{--}}1 {…}{{\ldots}}1 {„}{{\glqq}}1 {“}{{\grqq}}1 {≠}{{$\neq$}}1}
+
+\title{\vspace{-1.5cm}Plan für unseren Chatbot\\[2pt]\large Gruppe 2 -- Frankfurt am Main (RI XIII H.\,4)}
+\author{}
+\date{Pitch am 27.11.2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.2cm}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}lL@{}}
+\textbf{Heft} & RI XIII H.\,4 -- \emph{Regesten Kaiser Friedrichs III. (1440--1493), Heft 4: Die Urkunden und Briefe aus dem Stadtarchiv Frankfurt am Main}, bearb.\ von Paul-Joachim Heinig (1986); 1.054 Regesten, 22.02.1440--03.06.1493\\
+\textbf{Datenmodell} & gemeinsames Modell RI-alles (\code{riallesatag}), schreibgeschützt auf \code{bolt://jlu-buster.mni.thm.de:9011}\\
+\textbf{Stand der Zahlen} & Basismodell: Abfragen gegen eine vollständige lokale Kopie von RI-alles (Neo4j 5.26, 25.11.2026). Zahlen zur Ergänzung: LLM-Extraktion über alle 1.054 Regesten (26.11.2026) -- \textbf{ungeprüft}, bis der Goldstandard ausgewertet ist.\\
+\end{tabularx}
+\end{center}
+
+%=====================================================================
+\section{Wie unser Chatbot das gemeinsame Modell nutzt}
+
+RI-alles ist ein Text-als-Graph-Modell mit \emph{Standoff-Annotationen}. Es gibt nur drei Kantentypen (\code{PART\_OF}, \code{HAS\_ANNOTATION}, \code{REFERS\_TO}); was eine Verbindung bedeutet, steht in \code{Annotation.type}.
+
+\begin{lstlisting}
+(:Regesta) -[:PART_OF]-> (:Volume {label:'4'}) -[:PART_OF]-> (:Department {label:'RI13'})
+(:Summary|VersoNote|ArchivalHistory|...) -[:PART_OF]-> (:Regesta)                    // Textfelder
+(:Entity) -[:HAS_ANNOTATION]-> (:Annotation {type:'ri:appearsIn', role}) -[:REFERS_TO]-> (:Regesta)
+(:Regesta) -[:HAS_ANNOTATION]-> (:Annotation {type:'ri:placeOfIssue', original}) -[:REFERS_TO]-> (:Place)
+(:Entity) -[:HAS_ANNOTATION]-> (:Annotation {type:'ri:isSubOf'}) -[:REFERS_TO]-> (:Entity)  // Registerhierarchie
+\end{lstlisting}
+
+\begin{small}
+\begin{tabularx}{\textwidth}{@{}p{5.6cm}L@{}}
+\toprule
+\textbf{Baustein} & \textbf{Wofür der Chatbot ihn braucht}\\\midrule
+\code{Regesta} (\code{identifier}, \code{date}, \code{startDate}/\code{endDate}, \code{origPlaceOfIssue}, \code{urn}) & Treffer, Datum, Beleg: jede Antwort nennt \code{identifier} und Link\\
+\code{Volume} + \code{Department} & Heftfilter; \code{Volume.label='4'} ist nur zusammen mit \code{Department 'RI13'} eindeutig (gleichwertig \code{bandpk='13004000'})\\
+\code{Summary}, \code{VersoNote}, \code{ArchivalHistory} & Regestentext, Kanzleivermerk, Überlieferung und Chmel-Verweis\\
+\code{Entity} (\code{Person}, \code{Place}, \code{Thing}, \code{Event}) & Registereinträge; Unterlemmata tragen den vollen Pfad (\enquote{Frankfurt (Hessen), Stadt // AO})\\
+\code{ri:appearsIn} mit \code{role} & in Heft 4 nur \code{nennung} (3.359), \code{empfaenger} (1.606), \code{austOrt} (490), vereinzelt \code{p\_tot}, \code{p\_komment}\\
+\code{ri:placeOfIssue} $\to$ \code{Place} & normierter Ausstellungsort; \code{original} zeigt, ob erschlossen (\enquote{[Frankfurt]})\\
+\bottomrule
+\end{tabularx}
+\end{small}
+
+\medskip
+\noindent\textbf{Grundsatz:} Das LLM schreibt kein freies Cypher. Es ruft \textbf{feste MCP-Tools} auf, deren Cypher wir geschrieben und getestet haben. Die Tools setzen immer den Heftfilter, schließen den Schein-Ort \enquote{-} aus, zählen \code{DISTINCT} Regesten, rechnen mit Datumsüberlappung und geben zu jedem Treffer \code{identifier} und \code{urn} als Beleg zurück.
+
+\begin{small}
+\begin{tabularx}{\textwidth}{@{}lp{6.3cm}L@{}}
+\toprule
+\textbf{Tool} & \textbf{Parameter} & \textbf{Zweck}\\\midrule
+\code{search\_regesta} & \code{text?, heft?, date\_from?, date\_to?, place?} & Regesten filtern (Datum, Ort, Volltext)\\
+\code{get\_regest} & \code{identifier} & ein Regest mit allen Feldern, Ort und Registereinträgen samt Rollen\\
+\code{find\_entity} & \code{name, type?} & Registereintrag suchen, Kandidaten zur Auswahl\\
+\code{regesta\_by\_entity} & \code{entity\_uuid, role?, heft?, source?, include\_sub?} & Regesten zu einer Entity, nach Rolle, mit Unterlemmata\\
+\code{itinerary} & \code{heft?, date\_from?, date\_to?} & Ausstellungsorte mit Anzahl und Lücke\\
+\code{count\_regesta} & \code{group\_by} (year/decade/place/role/entity), Filter & Zählungen und Verläufe\\
+\code{co\_recipients} & \code{entity\_uuid, heft?} & weitere Empfänger derselben Regesten\\
+\code{legal\_acts} (\erg) & \code{act?, heft?, date\_from?, date\_to?, source?} & Regesten mit bestimmtem Rechtsakt\\
+\bottomrule
+\end{tabularx}
+\end{small}
+
+%=====================================================================
+\section{Zehn Fragen einer Lehrkraft (Grundstock für den Testsatz)}
+
+\begin{small}
+\begin{tabularx}{\textwidth}{@{}r p{4.2cm} L p{2.9cm} p{1.6cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Frage} & \textbf{Knoten, Annotationen, Rollen} & \textbf{Tool(s)} & \textbf{Modell}\\\midrule
+1 & Welche Urkunden stellte Friedrich III.\ 1442 in Frankfurt aus? & Regesta, Volume, \code{Summary}, \code{ri:placeOfIssue} $\to$ Place \enquote{Frankfurt am Main} & \code{search\_regesta} & Basis\\
+2 & Von wo aus schrieb Friedrich an Frankfurt? & Regesta, Volume, \code{ri:placeOfIssue} $\to$ Place & \code{itinerary} & Basis\\
+3 & Welche Privilegien bestätigte oder verlieh Friedrich der Stadt? & Regesta, \textbf{\code{ri:legalAct}} (\code{privilege\_*}), \code{ri:appearsIn} (\code{beneficiary}/\code{empfaenger}) & \code{legal\_acts} & \erg\\
+4 & Welche Steuern zahlte Frankfurt an den König? & Regesta, \code{Summary}; \textbf{\code{ri:legalAct \{act:'receipt', year\_ref\}}} & \code{search\_regesta}, \code{legal\_acts} & Basis, genauer mit Erg.\\
+5 & Was regelte der Frankfurter Landfrieden von 1442? & Regesta n.\,41, \code{Summary}, \code{Footnotes}, \code{ri:appearsIn} & \code{get\_regest} & Basis\\
+6 & Welche Kanzleibeamten wirkten an den Frankfurter Urkunden mit? & Person, \code{ri:appearsIn \{role:'nennung'\}}, \code{VersoNote}; \textbf{Rollen \code{relator}/\code{registrator}/\code{chancery}} & \code{regesta\_by\_entity}, \code{count\_regesta} & Basis, genauer mit Erg.\\
+7 & Welche Befehle erteilte der König dem Rat, und gegen wen richteten sie sich? & Regesta, \textbf{\code{ri:legalAct}} (\code{mandate}, \code{summons}, \dots), \textbf{Rolle \code{affected}} & \code{legal\_acts}, \code{regesta\_by\_entity} & \erg\\
+8 & Wie entwickelte sich der Kontakt über die Jahrzehnte? & Regesta (\code{startDate}/\code{endDate}, \code{date}), Volume & \code{count\_regesta} (decade) & Basis\\
+9 & Welche anderen Städte und Herren wurden zusammen mit Frankfurt angeschrieben? & Place/Person, \code{ri:appearsIn \{role:'empfaenger'\}}, \code{ri:isSubOf} & \code{find\_entity}, \code{co\_recipients} & Basis\\
+10 & Welche einzelnen Personen begünstigte der König in Frankfurt? & Person, \textbf{Rolle \code{beneficiary}}, \code{ri:legalAct} & \code{regesta\_by\_entity} & \erg\\
+\bottomrule
+\end{tabularx}
+\end{small}
+
+\medskip
+\noindent\textbf{Bilanz:} 5 Fragen gehen mit dem Basismodell (1, 2, 5, 8, 9), 2 werden mit der Ergänzung genauer (4, 6), 3 brauchen sie (3, 7, 10).
+Alle Abfragen beginnen mit dem Heftfilter, unten als \code{H4(r)} abgekürzt:
+\begin{lstlisting}
+MATCH (:Department {label:'RI13'})<-[:PART_OF]-(:Volume {label:'4'})<-[:PART_OF]-(r:Regesta)
+\end{lstlisting}
+
+\subsection*{Die Fragen im Einzelnen}
+
+\paragraph{1 -- Urkunden 1442 in Frankfurt.}
+Tool \code{search\_regesta(place:"Frankfurt am Main", heft:"RI XIII H. 4", date\_from:"1442-01-01", date\_to:"1442-12-31")}.
+\begin{lstlisting}
+H4(r) MATCH (r)-[:HAS_ANNOTATION]->(a:Annotation {type:'ri:placeOfIssue'})-[:REFERS_TO]->(:Place {label:'Frankfurt am Main'})
+WHERE r.startDate <= '1442-12-31' AND r.endDate >= '1442-01-01'
+MATCH (r)<-[:PART_OF]-(s:Summary)
+RETURN DISTINCT r.identifier, r.date, a.original, s.text ORDER BY r.startDate
+\end{lstlisting}
+\emph{Erwartung (geprüft):} 19 Regesten (30.\,Mai--14.\,August 1442), 2 mit erschlossenem Ort \enquote{[Frankfurt]}; u.\,a.\ n.\,21 (Quittung Stadtsteuer 1437), n.\,31 (Bestätigung der Messen und Privilegien), n.\,41 (Landfrieden).
+
+\paragraph{2 -- Von wo aus schrieb Friedrich?}
+Tool \code{itinerary(heft:"RI XIII H. 4")}; \code{a.original} zeigt erschlossene Orte.
+\begin{lstlisting}
+H4(r) MATCH (r)-[:HAS_ANNOTATION]->(a:Annotation {type:'ri:placeOfIssue'})-[:REFERS_TO]->(p:Place)
+WHERE p.label <> '-'
+RETURN p.label, count(DISTINCT r) AS anzahl, min(r.startDate), max(r.endDate) ORDER BY anzahl DESC
+\end{lstlisting}
+\emph{Erwartung (geprüft):} Wiener Neustadt 132 · Graz 110 · Wien 100 · Linz 46 · Frankfurt am Main 41 · Nürnberg 27 · Köln 23 · Andernach 22 · Augsburg 14; \textbf{ohne Ort: 442 von 1.054 (42\,\%)} -- wird immer mitgenannt.
+
+\paragraph{3 -- Privilegien für die Stadt (\erg).}
+Basismodell: nur Volltext (\enquote{bestätigt}, \enquote{Privileg}), unzuverlässig, weil \enquote{bestätigt} auch bei Belehnungen steht.
+Mit Ergänzung: Tool \code{legal\_acts(act:[\allowbreak"privilege\_confirmation",\allowbreak "privilege\_grant"])}.
+\begin{lstlisting}
+H4(r) MATCH (r)-[:HAS_ANNOTATION]->(la:Annotation {type:'ri:legalAct'})
+WHERE la.act IN ['privilege_confirmation','privilege_grant']
+  AND EXISTS { MATCH (r)<-[:REFERS_TO]-(b:Annotation {type:'ri:appearsIn'})
+               <-[:HAS_ANNOTATION]-(:Place {label:'Frankfurt (Hessen), Stadt'})
+               WHERE b.role IN ['beneficiary','empfaenger'] }
+RETURN r.identifier, r.date, la.act, la.object, coalesce(la.source,'register'), la.status
+\end{lstlisting}
+\emph{Erwartung (LLM, ungeprüft):} 25 Akte in 24 Regesten (15 Verleihungen, 10 Bestätigungen), z.\,B. n.\,31 (Messen 1442), n.\,214/233 (Messeprivilegien), n.\,861 (Sodener Salzquelle 1483), n.\,862 (Mainfischerei).
+
+\paragraph{4 -- Steuern an den König (Basis, genauer mit \erg).}
+Basismodell: Regestenanfang \enquote{K./Kg.\,F.\ quittiert} im \code{Summary} (68 Regesten), Frankfurt als \code{empfaenger}; Tool \code{search\_regesta(text:"quittiert")}.
+Mit Ergänzung: \code{ri:legalAct \{act:'receipt', object:'Stadtsteuer', year\_ref:1437, amount\}} -- Steuerjahr und Ausstellungsjahr getrennt abfragbar (\code{legal\_acts(act:"receipt")}).
+\emph{Erwartung (LLM, ungeprüft):} 66 Quittungen für Frankfurt, 59 über die Stadtsteuer (meist 928\,fl.\,rh.); bei 24 weicht das Steuerjahr vom Ausstellungsjahr ab (n.\,21--24: Steuern 1437--1441, quittiert 1442).
+
+\paragraph{5 -- Landfrieden 1442.}
+Tool \code{get\_regest("[RI XIII] H. 4 n. 41")}: alle \code{Content}-Knoten (\code{Summary}, \code{Footnotes}, \dots) und Registereinträge über \code{ri:appearsIn}.
+\emph{Zweck im Testsatz:} prüft, ob ein sehr langer Text korrekt und ohne Erfindungen zusammengefasst wird (Schutz von Bauern, Geistlichen, Pilgern, Kaufleuten; Verbot unrechtmäßiger Pfändung \dots).
+
+\paragraph{6 -- Kanzleibeamte (Basis, genauer mit \erg).}
+Basismodell: Personen mit \code{nennung}, deren Registerlabel ein Kanzleiamt nennt; Tool \code{count\_regesta(group\_by:"entity")} mit Amtsfilter.
+\begin{lstlisting}
+H4(r) MATCH (r)<-[:REFERS_TO]-(:Annotation {type:'ri:appearsIn'})<-[:HAS_ANNOTATION]-(e:Person)
+WHERE e.label =~ '(?i).*(kanzlei|protonotar|kammermeister|registrator|sekretär).*'
+RETURN e.label, count(DISTINCT r) AS anzahl ORDER BY anzahl DESC LIMIT 15
+\end{lstlisting}
+\emph{Erwartung (geprüft):} Ulrich Weltzli 25 · Jakob Widerl 19 · Johann Ungnad 12 · Peter Gamp 11 · Lukas Snitzer 11 -- aber auch Fürsten mit Ehrenamt (Erzbischof von Mainz als Erzkanzler).
+Mit Ergänzung: Rollen \code{relator}, \code{registrator}, \code{chancery} aus dem Kanzleivermerk (\code{VersoNote}, 515 Regesten): 125 Rollen (LLM, ungeprüft). Ab ca.\ 1470 steht nur noch \enquote{A.m.p.d.i.} ohne Namen -- das muss der Chatbot sagen.
+
+\paragraph{7 -- Befehle an den Rat und Betroffene (\erg).}
+Tool \code{legal\_acts(act:[\allowbreak"mandate", "summons", "ban\_enforcement", "prohibition"])}, dann \code{regesta\_by\_entity(role:"affected")}.
+\begin{lstlisting}
+H4(r) MATCH (r)-[:HAS_ANNOTATION]->(la:Annotation {type:'ri:legalAct'})
+WHERE la.act IN ['mandate','summons','ban_enforcement','prohibition']
+OPTIONAL MATCH (r)<-[:REFERS_TO]-(:Annotation {type:'ri:appearsIn', role:'affected'})<-[:HAS_ANNOTATION]-(e:Entity)
+RETURN la.act, r.identifier, r.date, la.object, collect(e.label) AS betroffen
+\end{lstlisting}
+\emph{Erwartung (LLM, ungeprüft):} 169 Akte in 167 Regesten an Frankfurt (108 Befehle, 42 Ladungen, 10 Verbote, 9 Achtsachen); häufigste Betroffene: Türken (13), Hz.\ Karl von Burgund (8), Hz.\ Ludwig von Bayern-Landshut (7); Beispiel n.\,35 (Acht gegen Lüttich, Huy, St.\ Truiden \dots).
+\emph{Fallstrick:} 4-mal ist Frankfurt selbst \code{affected} (n.\,842, Ladung durch den Fiskal) -- \enquote{Befehl an den Rat} und \enquote{Maßnahme gegen den Rat} trennen.
+
+\paragraph{8 -- Kontakt über die Jahrzehnte.}
+Tool \code{count\_regesta(group\_by:"decade")}; Jahrzehnt aus \code{startDate} und \code{endDate}, abweichende Fälle als \enquote{unsicher}.
+\emph{Erwartung (geprüft):} 1440er 171 · 1450er 124 · 1460er 198 · \textbf{1470er 328} · 1480er 189 · 1490er 44; dazu Hinweis auf 483 unsichere Daten.
+
+\paragraph{9 -- Mitempfänger Frankfurts.}
+Tool \code{find\_entity("Frankfurt", type:"Place")}, dann Auswahl des Kandidaten, dann\\ \code{co\_recipients(entity\_uuid)}.
+\begin{lstlisting}
+MATCH (f:Place {label:'Frankfurt (Hessen), Stadt'})
+      -[:HAS_ANNOTATION]->(:Annotation {type:'ri:appearsIn', role:'empfaenger'})-[:REFERS_TO]->(r:Regesta)-[:PART_OF]->(:Volume {label:'4'})-[:PART_OF]->(:Department {label:'RI13'})
+MATCH (r)<-[:REFERS_TO]-(:Annotation {type:'ri:appearsIn', role:'empfaenger'})<-[:HAS_ANNOTATION]-(o:Entity)
+WHERE o <> f
+RETURN o.label, count(DISTINCT r) AS gemeinsam ORDER BY gemeinsam DESC LIMIT 15
+\end{lstlisting}
+\emph{Erwartung (geprüft):} Herren von Eppstein 8 · Grafen von Isenburg 8 · Erzbischof von Mainz 8 · Worms 7 · Wetzlar, Friedberg, Speyer, Gelnhausen je 6.
+
+\paragraph{10 -- Begünstigte Personen (\erg).}
+Basismodell: Begünstigte stehen nur als \code{nennung} im Register (n.\,110: Johannes Snyder). Mit Ergänzung: Tool \code{regesta\_by\_entity(role:"beneficiary")}.
+\begin{lstlisting}
+H4(r) MATCH (r)<-[:REFERS_TO]-(b:Annotation {type:'ri:appearsIn', role:'beneficiary'})<-[:HAS_ANNOTATION]-(e:Person)
+OPTIONAL MATCH (r)-[:HAS_ANNOTATION]->(la:Annotation {type:'ri:legalAct'})
+RETURN e.label, la.act, la.object, r.identifier, b.source, b.status
+\end{lstlisting}
+\emph{Erwartung (LLM, ungeprüft):} 55 Personen, 70-mal begünstigt, z.\,B. Johannes Snyder (n.\,110, Gotteslehen), Katharina von Ingelheim (n.\,32, Schutz), Konrad von Steeg (n.\,107, Münze). Fürsten und Herrscher werden getrennt ausgegeben.
+
+%=====================================================================
+\section{Fallstricke des Modells und unser Umgang damit}
+
+\begin{small}
+\begin{longtable}{@{}p{2.3cm}p{5.7cm}p{4.3cm}p{3.3cm}@{}}
+\toprule
+\textbf{Fallstrick} & \textbf{Befund in Heft 4} & \textbf{Regel (fest in den Tools)} & \textbf{Was der Chatbot sagt}\\\midrule\endhead
+\textbf{Doppelte Regesten (Chmel und Hefte)} &
+100 Regesten verweisen im \code{Reg.:}-Teil von \code{archivalHistory} auf ein Chmel-Regest (94 verschiedene; Chmel: \code{bandpk '13000000'}). Gleiches Datum + Ort taugt nicht als Erkennung; 18 Paare haben verschiedene Daten (n.\,22 \enquote{Mai 31} $\leftrightarrow$ Chmel n.\,558 \enquote{Mai 30}). Mehrere Heft-Regesten zeigen auf dasselbe Chmel-Regest. &
+Heft vor Chmel: gezählt wird das Heft-4-Regest. Dublette nur bei Link im \code{Reg.:}-Teil, sonst Querverweis. Fragen zu Frankfurt filtern auf Heft 4. &
+\enquote{auch bei Chmel n.\,558 (dort 30.\,Mai)} -- als Hinweis, nicht als zweiter Treffer\\\midrule
+\textbf{Datums\-angaben als Spanne} &
+41 echte Spannen (\code{startDate} $\neq$ \code{endDate}), weitere 442 erschlossene Daten mit \code{startDate = endDate}: \enquote{[Vor 1441 Mai 26]} steht als exakt 1441-05-26 im Modell. Zusammen 483 von 1.054 (46\,\%) unsicher. &
+Überlappung: \code{startDate <= \$ende AND endDate >= \$anfang}. Unsicher, wenn Spanne oder \code{date} enthält \enquote{[}. Ausgabe immer mit Originalangabe \code{date}. &
+\enquote{19 Regesten, davon 3 mit erschlossenem Datum}; bei \enquote{vor \dots}: gespeichertes Datum ist der späteste mögliche Tag\\\midrule
+\textbf{Fehlende Ausstellungsorte} &
+442 Regesten (42\,\%) ohne Ort -- aber nicht als NULL: 441 hängen per \code{ri:placeOfIssue} an einem \textbf{Schein-Ort \enquote{-}} (Original \enquote{[-]}, \enquote{o.\,O.}). 427 davon sind verlorene Stücke. 52 Orte sind erschlossen (\enquote{[Frankfurt]}). &
+\code{p.label <> '-'} in jeder Ortsabfrage, Lücke getrennt zählen. Kein Erschließen per LLM (würde raten). Erschlossene Orte zählen mit, markiert. &
+\enquote{Bei 442 von 1.054 Regesten ist kein Ort überliefert}; \enquote{[Frankfurt] = erschlossen}\\\midrule
+Doppelte Annotationen &
+44 Regesten mit doppeltem \code{ri:placeOfIssue} (Linz: 89 Annotationen, 46 Regesten); 44 Regesten mit doppelter Registerverknüpfung &
+immer \code{count(DISTINCT r)} & --\\\midrule
+\enquote{Frankfurt} ist mehrdeutig &
+Ausstellungsort \enquote{Frankfurt am Main} (41) $\neq$ Registerlemma \enquote{Frankfurt (Hessen), Stadt} (389, mit Unterlemmata 460) $\neq$ Textvorkommen (638) $\neq$ ganzes Heft (1.054) &
+\code{find\_entity} bietet Kandidaten an; Teilbaum über \code{ri:isSubOf} &
+\enquote{Gezählt: Frankfurt als Empfänger laut Register}\\\midrule
+Aussteller nicht im Text &
+Texte beginnen mit \enquote{K.\,F.} / \enquote{Kg.\,F.}; \enquote{Friedrich} steht nur in 42 Texten &
+Aussteller über Heftfilter, nie Volltext; Abkürzungen im Systemprompt & --\\\midrule
+Kanzleivermerke ohne Namen &
+ab ca.\ 1470 meist nur \enquote{A.m.p.d.i.} &
+keine erfundenen Bearbeiter &
+\enquote{Der Vermerk nennt keinen Bearbeiter.}\\
+\bottomrule
+\end{longtable}
+\end{small}
+
+%=====================================================================
+\section{Unsere Ergänzung für die Region: Rollen und Rechtsakte per LLM}
+
+Das Register unterscheidet nur grob zwischen \code{empfaenger} und \code{nennung}; Rechtsakte gibt es gar nicht. Beispiel n.\,32: Befehl an den Schultheißen Hermann von Hoch-Weisel, Katharina von Ingelheim zu schützen -- im Register ist Hoch-Weisel \code{empfaenger} und Katharina nur \code{nennung}; eigentlich ist sie \textbf{Begünstigte} und er \textbf{Beauftragter}.
+
+\subsection{Was wir aus den Regestentexten gewinnen}
+
+\textbf{A) Zusätzliche Rollen} für \code{ri:appearsIn} -- nur auf \emph{vorhandene} Register-Entities desselben Regests:
+
+\begin{small}
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}Lp{1.8cm}p{4.2cm}r@{}}
+\toprule
+\code{role} & Bedeutung & verfeinert & Beispiel & Anzahl\\\midrule
+\code{beneficiary} & Begünstigter & \code{nennung} & Johannes Snyder (n.\,110) & 300\\
+\code{commissioned} & mit dem Vollzug beauftragt & \code{empfaenger} & Hermann von Hoch-Weisel (n.\,32) & 241\\
+\code{affected} & gegen wen sich die Maßnahme richtet & \code{nennung} & Lüttich, Huy, Maastricht (n.\,35) & 515\\
+\code{petitioner} & auf wessen Bitte gehandelt wird & \code{nennung} & Bürgermeister und Rat & 123\\
+\code{payer} & Zahlender & \code{empfaenger} & Stadt Frankfurt (n.\,21) & 152\\
+\code{relator}/\allowbreak\code{registrator}/\allowbreak\code{chancery} & Kanzleivermerk (\code{VersoNote}) & \code{nennung} & H.\ Leubing / J.\ Widerl (n.\,21) & 27/5/93\\
+\bottomrule
+\end{tabularx}
+\end{small}
+
+\medskip
+\textbf{B) Rechtsakte} als kontrolliertes Vokabular, abgeleitet aus den häufigsten Verben am Regestenanfang:
+\code{mandate} (Befehl, 290) · \code{summons} (Ladung, 192) · \code{communication} (89) · \code{commission} (Auftrag, 89) · \code{request} (Bitte/Erste Bitte, 74) · \code{receipt} (Quittung, 72) · \code{prohibition} (62) · \code{privilege\_grant} (36) · \code{credential} (Beglaubigung, 31) · \code{ban\_enforcement} (Acht, 29) · \code{privilege\_confirmation} (24) · \code{enfeoffment} (Belehnung, 17) · \code{appointment} (13) · \code{consent} (7) · \code{public\_peace} (Landfrieden, 5) · \code{ban\_release} (2) · \code{other} (69). Zusatzfelder je nach Akt: \code{object}, \code{year\_ref}, \code{amount}.
+Ergebnis über alle 1.054 Regesten: \textbf{1.101 Rechtsakte und 1.456 Rollen}; die automatische Prüfung meldet 0 Fehler.
+
+\subsection{So sieht es im Modell aus}
+
+Wir verwenden \textbf{dieselben Muster wie RI-alles} (Annotation-Knoten mit \code{type}), damit Register und Ergänzung mit denselben Abfragen gelesen werden:
+
+\begin{lstlisting}
+// Rolle: vorhandener Registereintrag Johannes Snyder ist Begünstigter in n. 110
+(:Person {label:'Snyder, Johannes, Sohn des Wigands'})
+  -[:HAS_ANNOTATION]->(:Annotation {type:'ri:appearsIn', role:'beneficiary',
+       evidence:'dem Johannes, Sohn des Frankfurter Bürgers Wigand Snyder',
+       source:'llm', model:'...', prompt_version:'v1', confidence:0.88, status:'unreviewed', created:datetime()})
+  -[:REFERS_TO]->(:Regesta {identifier:'[RI XIII] H. 4 n. 110'})
+
+// Rechtsakt: Bitte um ein Gotteslehen -- verweist auf das Textfeld mit der Belegstelle
+(:Regesta {identifier:'[RI XIII] H. 4 n. 110'})
+  -[:HAS_ANNOTATION]->(:Annotation {type:'ri:legalAct', act:'request',
+       object:'erstes freiwerdendes Gotteslehen in Frankfurt',
+       evidence:'das erste freiwerdende Gotteslehen in ihrer Stadt zu verleihen',
+       source:'llm', model:'...', prompt_version:'v1', confidence:0.91, status:'unreviewed'})
+  -[:REFERS_TO]->(:Summary)
+\end{lstlisting}
+
+Die Register-Rolle bleibt erhalten, die neue Annotation kommt hinzu. RI-alles auf jlu-buster ist schreibgeschützt; die Ergänzung liegt daher in \textbf{unserer eigenen Neo4j-Instanz} (Kopie von RI-alles + Ergänzung), verknüpft über die \code{uuid} von Regest und Entity. Import über \code{import\_llm\_annotationen.cypher} (idempotent über \code{importKey}, mit Rückgängig-Abfrage).
+
+\subsection{Herkunft: Register, LLM, manuell}
+
+\begin{small}
+\begin{tabularx}{\textwidth}{@{}lp{5.5cm}L@{}}
+\toprule
+\code{source} & Bedeutung & erkennbar an / Pflichtfelder\\\midrule
+\code{register} & aus dem RI-Register (bestehende Annotationen) & ohne \code{source}-Eigenschaft, mit \code{importKey}; Tools lesen \code{coalesce(a.source,'register')}\\
+\code{llm} & vom Sprachmodell aus \code{Summary}/\code{VersoNote} & \code{model}, \code{prompt\_version}, \code{created}, \code{confidence}, wörtliche \code{evidence}\\
+\code{manual} & von uns angelegt oder korrigiert & \code{reviewed\_by}, \code{reviewed\_at}, ggf.\ \code{note}\\
+\bottomrule
+\end{tabularx}
+\end{small}
+
+\medskip
+LLM-Annotationen haben zusätzlich \code{status}: \code{unreviewed} $\to$ \code{verified} oder \code{rejected} (bleibt für die Evaluation, wird nicht ausgegeben). Eine inhaltliche Korrektur erzeugt eine neue \code{manual}-Annotation; die alte wird \code{rejected}.
+\textbf{Im Chatbot sichtbar:} \enquote{laut Register: genannt} bzw.\ \enquote{vom Sprachmodell erschlossen: Begünstigter (ungeprüft)}. Über den Tool-Parameter \code{source} kann die Lehrkraft LLM-Annotationen ausblenden.
+
+\subsection{Pipeline (offline, einmalig für Heft 4)}
+\begin{enumerate}
+\item Regesten mit \code{Summary}, \code{VersoNote} und ihren Register-Entities (Label + uuid) holen; bei \enquote{desgleichen}-Regesten den Vorgänger mitgeben.
+\item LLM pro Regest: ordnet \emph{nur vorhandenen} Entities neue Rollen zu und liefert Rechtsakte als JSON, jeweils mit wörtlicher Belegstelle.
+\item Automatische Prüfung: \code{evidence} steht wörtlich im Text, \code{role}/\code{act} aus dem Vokabular, \code{entity\_uuid} gehört zum Regest.
+\item Goldstandard: 50 Regesten (123 Annotationen) von zwei Personen bewerten $\to$ Präzision und Trefferquote je Rolle und Rechtsakt.
+\item Import mit \code{source:'llm'}, \code{status:'unreviewed'}.
+\end{enumerate}
+
+%=====================================================================
+\section{Architektur-Skizze}
+
+\begin{center}
+\resizebox{\textwidth}{!}{\input{common_arch.tex}}
+\end{center}
+
+\begin{enumerate}
+\item Die Lehrkraft stellt im Browser eine Frage; React schickt sie per REST an das FastAPI-Backend.
+\item Der Chatbot (Agentic Harness) gibt Frage, Systemprompt (Heft, Abkürzungen \enquote{K.\,F.}, Regeln zu Ort, Datum und Herkunft) und die Tool-Beschreibungen an das LLM.
+\item Das LLM wählt ein Tool; der MCP-Client ruft es beim RI-MCP-Server auf. Das LLM greift \textbf{nie direkt} auf die Datenbank zu.
+\item Der MCP-Server führt seine feste Cypher-Abfrage auf Neo4j aus (RI-alles + Ergänzung) und liefert JSON mit \code{identifier}, \code{urn}, \code{source} und Lückenzahlen.
+\item Das LLM formuliert die Antwort; der Harness prüft, dass jede genannte Regestennummer aus den Tool-Ergebnissen stammt, und hängt Belege und Visualisierungsdaten an.
+\item Der Browser zeigt Antwort, Quellenlinks und ggf.\ Karte oder Zeitleiste; Wikidata liefert Steckbriefe als gekennzeichnete externe Quelle.
+\end{enumerate}
+
+%=====================================================================
+\section{Pitch am 27.11.\ (3 Folien, 5 Minuten)}
+Die Folien liegen getrennt als \code{Pitch\_Folien.pdf} bei.
+\begin{description}
+\item[Folie 1 -- Frankfurt im Graphen: 10 Fragen, 8 Tools] (ca.\ 1,5 min) Heft 4 in Zahlen; die zehn Fragen kompakt mit Basis/Ergänzung; Grundsatz: nur feste MCP-Tools, jede Antwort mit Regestennummer.
+\item[Folie 2 -- Fallstricke und unsere Ergänzung] (ca.\ 2 min) Chmel-Dubletten, Datumsspannen, Schein-Ort \enquote{-} mit Regel; Beispiel n.\,32 vorher/nachher; Herkunft \code{register}/\code{llm}/\code{manual}.
+\item[Folie 3 -- Architektur] (ca.\ 1,5 min) Diagramm; Kernaussage: \emph{Das LLM formuliert, die Tools rechnen und belegen.}
+\end{description}
+
+\section*{Offene Punkte}
+\begin{itemize}
+\item Goldstandard auswerten (Präzision/Trefferquote je Rolle und Rechtsakt).
+\item Ergänzung in die eigene Neo4j-Instanz importieren und die Abfragen 3, 7, 10 dort gegenprüfen.
+\item Doppelte Registerverknüpfungen (44 Regesten) in der Datenbank klären.
+\item Wikidata-MCP-Server und Bibliotheken für Karte und Zeitleiste auswählen.
+\end{itemize}
+
+\end{document}
